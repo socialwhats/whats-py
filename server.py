@@ -1,24 +1,21 @@
 import web, os
 import threading,time, base64
 
-from Examples.EchoClient import WhatsappEchoClient
 from Examples.ListenerClient import WhatsappListenerClient
 from Yowsup.Common.utilities import Utilities
 
-urls = ('/.*', 'hooks')
-app = web.application(urls, globals())
-
 DEFAULT_CONFIG = "config"
+wa = WhatsappListenerClient(True, True, True)
 
 def getCredentials(config = DEFAULT_CONFIG):
 	if os.path.isfile(config):
 		f = open(config)
-		
+	
 		phone = ""
 		idx = ""
 		pw = ""
 		cc = ""
-		
+	
 		try:
 			for l in f:
 				line = l.strip()
@@ -57,21 +54,26 @@ else:
 			sys.exit("ERROR. Couldn't detect cc, you have to manually place it your config")
 	countryCode, phoneNumber = dissected
 
-class hooks:
-	def GET(self):
-
-		request_data = web.input(phone="", message="")
-
-		phone = request_data.phone
-		message = request_data.message
-
-		wa = WhatsappEchoClient(phone, message.encode("utf-8"), False)
-		wa.login(login, password)
-
-if __name__ == '__main__':
+def start_listening():
 	# listen to new messages
-	wa = WhatsappListenerClient(True, True)
 	wa.login(login, password)
 
-	# run app
-	app.run()
+class Hooks(threading.Thread):
+
+	def run (self):
+
+		urls = ('/.*', 'Hooks')
+		app = web.application(urls, globals())
+		app.run()
+
+	def GET(self):
+
+		request_data = web.input(dest="", message="")
+
+		dest = request_data.dest
+		message = request_data.message
+
+		wa.send(dest, message, True)
+
+Hooks().start()
+start_listening()

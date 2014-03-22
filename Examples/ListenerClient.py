@@ -22,7 +22,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import os
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.sys.path.insert(0,parentdir)
-import datetime, sys
+import datetime, sys, time
 
 if sys.version_info >= (3, 0):
 	raw_input = input
@@ -31,14 +31,19 @@ from Yowsup.connectionmanager import YowsupConnectionManager
 
 class WhatsappListenerClient:
 	
-	def __init__(self, keepAlive = False, sendReceipts = False):
+	def __init__(self, keepAlive = False, sendReceipts = False, waitForReceipt = False):
 		self.sendReceipts = sendReceipts
+		self.waitForReceipt = waitForReceipt
 		
 		connectionManager = YowsupConnectionManager()
 		connectionManager.setAutoPong(keepAlive)
 
 		self.signalsInterface = connectionManager.getSignalsInterface()
 		self.methodsInterface = connectionManager.getMethodsInterface()
+
+		if waitForReceipt:
+			self.signalsInterface.registerListener("receipt_messageSent", self.onMessageSent)
+			self.gotReceipt = False
 		
 		self.signalsInterface.registerListener("message_received", self.onMessageReceived)
 		self.signalsInterface.registerListener("group_messageReceived", self.onGroupMessageReceived)
@@ -53,7 +58,42 @@ class WhatsappListenerClient:
 		self.methodsInterface.call("auth_login", (username, password))
 
 		while True:
-			raw_input()	
+			raw_input()
+
+	def send(self, target, message, waitForReceipt=False):
+
+		self.jids = []
+		
+		if '-' in target:
+			self.jids = ["%s@g.us" % target]
+		else:
+			self.jids = ["%s@s.whatsapp.net" % t for t in target.split(',')]
+
+		self.message = message.encode('utf8')
+		self.waitForReceipt = waitForReceipt
+
+		if self.waitForReceipt:
+			self.methodsInterface.call("ready")
+		
+		
+		if len(self.jids) > 1:
+			self.methodsInterface.call("message_broadcast", (self.jids, self.message))
+		else:
+			self.methodsInterface.call("message_send", (self.jids[0], self.message))
+		print("Sent message")
+		if self.waitForReceipt:
+			timeout = 5
+			t = 0;
+			while t < timeout and not self.gotReceipt:
+				time.sleep(0.5)
+				t+=1
+
+			if not self.gotReceipt:
+				print("print timedout!")
+			else:
+				print("Got sent receipt")
+
+		self.done = True		
 
 	def onAuthSuccess(self, username):
 		print("Authed %s" % username)
@@ -74,8 +114,11 @@ class WhatsappListenerClient:
 
 		import urllib2
 		import urllib
-		params = { 'number' : jid, 'message' : messageContent}
+		params = { 'number' : jid, 'message' : messageContent, 'message_id': messageId}
 		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_message_received?" + urllib.urlencode(params))
+
+	def onMessageSent(self, jid, messageId):
+		self.gotReceipt = True
 	
 	def onGroupMessageReceived(self, messageId, jid, author, content, timestamp, receiptRequested, extra):
 		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
