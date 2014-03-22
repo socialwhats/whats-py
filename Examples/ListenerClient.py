@@ -41,6 +41,7 @@ class WhatsappListenerClient:
 		self.methodsInterface = connectionManager.getMethodsInterface()
 		
 		self.signalsInterface.registerListener("message_received", self.onMessageReceived)
+		self.signalsInterface.registerListener("group_messageReceived", self.onGroupMessageReceived)
 		self.signalsInterface.registerListener("auth_success", self.onAuthSuccess)
 		self.signalsInterface.registerListener("auth_fail", self.onAuthFailed)
 		self.signalsInterface.registerListener("disconnected", self.onDisconnected)
@@ -50,8 +51,7 @@ class WhatsappListenerClient:
 	def login(self, username, password):
 		self.username = username
 		self.methodsInterface.call("auth_login", (username, password))
-		
-		
+
 		while True:
 			raw_input()	
 
@@ -77,3 +77,14 @@ class WhatsappListenerClient:
 		params = { 'number' : jid, 'message' : messageContent}
 		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_message_received?" + urllib.urlencode(params))
 	
+	def onGroupMessageReceived(self, messageId, jid, author, content, timestamp, receiptRequested, extra):
+		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
+		print("group %s [%s]:%s"%(jid, formattedDate, author))
+
+		if receiptRequested and self.sendReceipts:
+			self.methodsInterface.call("message_ack", (jid, messageId))
+
+		import urllib2
+		import urllib
+		params = { 'number' : jid, 'message' : messageId}
+		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_group_message_received?" + urllib.urlencode(params))
