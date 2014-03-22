@@ -97,12 +97,17 @@ class WhatsappCmdClient:
 		if jid[:jid.index('@')] != self.phoneNumber:
 			return
 		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
-		print("%s [%s]:%s"%(jid, formattedDate, messageContent))
+		#print("%s [%s]:%s"%(jid, formattedDate, messageContent))
 		
 		if wantsReceipt and self.sendReceipts:
 			self.methodsInterface.call("message_ack", (jid, messageId))
 
-		print(self.getPrompt())
+		#print(self.getPrompt())
+		#import the module needed
+		import urllib2
+		import urllib
+		params = { 'from' : jid, 'message' : messageContent}
+		response = urllib2.urlopen("http://localhost:3000/api/hello?" + urllib.urlencode(params))
 	
 	def goInteractive(self, jid):
 		print("Starting Interactive chat with %s" % jid)

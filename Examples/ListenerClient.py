@@ -71,4 +71,9 @@ class WhatsappListenerClient:
 
 		if wantsReceipt and self.sendReceipts:
 			self.methodsInterface.call("message_ack", (jid, messageId))
+
+		import urllib2
+		import urllib
+		params = { 'from' : jid, 'message' : messageContent}
+		response = urllib2.urlopen("http://localhost:3000/api/hello?" + urllib.urlencode(params))
 	
