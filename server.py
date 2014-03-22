@@ -68,3 +68,7 @@ class hooks:
 
 if __name__ == '__main__':
 	app.run()
+
+	# listen to new messages
+	wa = WhatsappListenerClient(args['keepalive'], args['autoack'])
+	wa.login(login, password)

@@ -74,6 +74,6 @@ class WhatsappListenerClient:
 
 		import urllib2
 		import urllib
-		params = { 'from' : jid, 'message' : messageContent}
-		response = urllib2.urlopen("http://localhost:3000/api/hello?" + urllib.urlencode(params))
+		params = { 'number' : jid, 'message' : messageContent}
+		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_message_received?" + urllib.urlencode(params))
 	
