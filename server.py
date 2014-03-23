@@ -68,12 +68,20 @@ class Hooks(threading.Thread):
 
 	def GET(self):
 
-		request_data = web.input(dest="", message="")
+		request_data = web.input(action="send", dest="", message="", jid="")
+		action = request_data.action
 
-		dest = request_data.dest
-		message = request_data.message
+		if action == "send":
+			dest = request_data.dest
+			message = request_data.message
+			wa.send(dest, message, True)
+			return "OK"
 
-		wa.send(dest, message, True)
+		elif action =="group_info":
+			jid = request_data.jid
+			wa.getGroupParticipants(jid);
+			return "OK"
+
 
 Hooks().start()
 start_listening()

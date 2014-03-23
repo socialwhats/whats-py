@@ -23,6 +23,8 @@ import os
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.sys.path.insert(0,parentdir)
 import datetime, sys, time
+import urllib2
+import urllib
 
 if sys.version_info >= (3, 0):
 	raw_input = input
@@ -46,7 +48,9 @@ class WhatsappListenerClient:
 			self.gotReceipt = False
 		
 		self.signalsInterface.registerListener("message_received", self.onMessageReceived)
+		self.signalsInterface.registerListener("image_received", self.onImageReceived)
 		self.signalsInterface.registerListener("group_messageReceived", self.onGroupMessageReceived)
+		self.signalsInterface.registerListener("group_gotParticipants", self.onGetGroupParticipants)
 		self.signalsInterface.registerListener("auth_success", self.onAuthSuccess)
 		self.signalsInterface.registerListener("auth_fail", self.onAuthFailed)
 		self.signalsInterface.registerListener("disconnected", self.onDisconnected)
@@ -93,7 +97,24 @@ class WhatsappListenerClient:
 			else:
 				print("Got sent receipt")
 
-		self.done = True		
+		self.done = True
+
+	def sendImage(jid, url, name, size, preview):
+		self.methodsInterface.call("message_imageSend", (jid, url, name, size, preview))
+
+		if self.waitForReceipt:
+			timeout = 5
+			t = 0;
+			while t < timeout and not self.gotReceipt:
+				time.sleep(0.5)
+				t+=1
+
+			if not self.gotReceipt:
+				print("print timedout!")
+			else:
+				print("Got sent receipt")
+
+		self.done = True
 
 	def onAuthSuccess(self, username):
 		print("Authed %s" % username)
@@ -109,25 +130,38 @@ class WhatsappListenerClient:
 		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
 		print("%s [%s]:%s"%(jid, formattedDate, messageContent))
 
-		if wantsReceipt and self.sendReceipts:
+		if wantsReceipt or self.sendReceipts:
 			self.methodsInterface.call("message_ack", (jid, messageId))
 
-		import urllib2
-		import urllib
 		params = { 'number' : jid, 'message' : messageContent, 'message_id': messageId}
 		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_message_received?" + urllib.urlencode(params))
 
+	def onImageReceived(self, messageId, jid, preview, url, size, receiptRequested):
+
+		if receiptRequested or self.sendReceipts:
+			self.methodsInterface.call("message_ack", (jid, messageId))
+
+		params = { 'number' : jid, 'message_id' : messageId, 'url': url}
+		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_image_received?" + urllib.urlencode(params))
+
 	def onMessageSent(self, jid, messageId):
 		self.gotReceipt = True
-	
+
 	def onGroupMessageReceived(self, messageId, jid, author, content, timestamp, receiptRequested, extra):
+
 		formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
 		print("group %s [%s]:%s"%(jid, formattedDate, author))
 
-		if receiptRequested and self.sendReceipts:
+		if receiptRequested or self.sendReceipts:
 			self.methodsInterface.call("message_ack", (jid, messageId))
 
-		import urllib2
-		import urllib
-		params = { 'number' : jid, 'message' : messageId}
+		params = { 'number' : jid, 'message_id' : messageId, 'content': content, 'author': author}
 		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_group_message_received?" + urllib.urlencode(params))
+
+	def getGroupParticipants(self, jid):
+		self.methodsInterface.call("group_getParticipants", jid)
+
+	def onGetGroupParticipants(self, jid, jids):
+		params = { 'group' : jid, 'participants' : jids}
+		response = urllib2.urlopen("http://localhost:3000/api/whatsapp/on_group_info?" + urllib.urlencode(params))
+		

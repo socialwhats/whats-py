@@ -216,8 +216,13 @@ class MethodInterfaceBase(object):
 		#print "SHOULD CALL"
 		#print methodName
 		callback = self.getCallback(methodName)
+
 		if callback:
-			return callback(*params)
+			if isinstance(params, basestring):
+				return callback(params)
+			else:
+				return callback(*params)
+
 		#@@TODO raise no method exception
 		return None
 
